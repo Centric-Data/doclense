@@ -43,18 +43,28 @@ class DocumentLense
 
   public function __construct()
   {
-
+    add_action( 'add_meta_boxes', array( $this, 'dl_download_meta_boxes' ) );
+    add_action( 'save', array( $this, 'dl_save' ) );
   }
-
+  /**
+   * Custom type meta boxes.
+   *
+   * return @void
+   */
+   public function doclense_download_meta_boxes(){
+     add_meta_box( 'upload_file', 'Attach File', 'dl_render_meta_box_content', 'centric_documents', 'advanced', 'high' );
+   }
 
 }
+
+new DocumentLense;
 
 /**
  * Register a custom post type.
  *
  * return @void
  */
-function ls_download_form_post_type() {
+function dl_download_form_post_type() {
    $labels = array(
      'name'           => _x( 'Documents', 'Post type general name', 'doclense' ),
      'singular'       => _x( 'Document', 'Post type singular name', 'doclense' ),
@@ -78,4 +88,51 @@ function ls_download_form_post_type() {
    );
    register_post_type( 'centric_documents', $args );
  }
- add_action( 'init', 'ls_download_form_post_type' );
+ add_action( 'init', 'dl_download_form_post_type' );
+
+/**
+* Save the meta data when the post is saved.
+*
+* @param int $post_id The ID of the post being saved.
+*/
+function dl_save( $post_id ){
+
+}
+
+/**
+* Render Meta Box content.
+*
+* @param WP_Post $post The post object.
+*/
+function dl_render_meta_box_content( $post ){
+   // Add an once field so we can check for it later.
+   wp_nonce_field( '' );
+
+   // Use get_post_meta to retrieve an existing value from the database
+   $value = get_post_meta( $post->ID, '_file_meta_value_key', true );
+
+   // Display the form, using the current array_count_values
+   ?>
+   <label for="doclence_select_field"><?php _e( 'Attach a Document:' ); ?></label>
+   <select name="docs" id="doclence_input_field">
+     <option value="doc1">Agenda 2020 Farm</option>
+     <option value="doc2">Farm Lease Agreement</option>
+   </select>
+   <?php
+ }
+
+ /**
+ * Custom Enquiry Columns.
+ *
+ * @param WP_Post $post The post object.
+ */
+ function dl_doclense_columns( $columns ){
+   $newColumns = array();
+   $newColumns['title'] = 'File Title';
+   $newColumns['details'] = 'Excerpt Details';
+   $newColumns['Document'] = 'Document';
+   $newColumns['date'] = 'Date';
+
+   return $newColumns;
+ }
+ add_filter( 'manage_centric_documents_posts_columns', 'dl_doclense_columns' );
