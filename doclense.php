@@ -1,6 +1,6 @@
 <?php
 /**
- * Document-Lense Form
+ * Document-Lense
  *
  * @package     Document-Lense
  * @author      Centric Data
@@ -34,3 +34,48 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'DL_LOCATION', dirname( __FILE__ ) );
 define( 'DL_LOCATION_URL' , plugins_url( '', __FILE__ ) );
 define( 'DL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ *
+ */
+class DocumentLense
+{
+
+  public function __construct()
+  {
+
+  }
+
+
+}
+
+/**
+ * Register a custom post type.
+ *
+ * return @void
+ */
+function ls_download_form_post_type() {
+   $labels = array(
+     'name'           => _x( 'Documents', 'Post type general name', 'doclense' ),
+     'singular'       => _x( 'Document', 'Post type singular name', 'doclense' ),
+     'menu_name'      => _x( 'Documents', 'Admin Menu Text', 'lands' ),
+     'name_admin_bar' => _x( 'Document', 'Add New on Toolbar', 'doclense' ),
+     'add_new'        => __( 'Add New', 'doclense' ),
+     'add_new_item'   => __( 'Add New Document', 'doclense' ),
+     'new_item'       => __( 'New Document' ),
+     'edit_item'      => __( 'Edit Document', 'doclense' ),
+     'view_item'      => __( 'View Document', 'doclense' ),
+     'all_items'      => __( 'All Documents', 'doclense' ),
+   );
+   $args   = array(
+     'labels'          => $labels,
+     'public'          => true,
+     'has_archive'     => true,
+     'hierarchical'    => false,
+     'supports'        => array( 'title', 'editor' ),
+     'capability_type' => 'post',
+     'menu_icon'       => 'dashicons-text-page',
+   );
+   register_post_type( 'centric_documents', $args );
+ }
+ add_action( 'init', 'ls_download_form_post_type' );
