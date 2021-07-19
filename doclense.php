@@ -43,16 +43,46 @@ class DocumentLense
 
   public function __construct()
   {
+    // Create Meta Boxes in Custom Post Type centric_documents
     add_action( 'add_meta_boxes', array( $this, 'dl_download_meta_boxes' ) );
+
+    // Save meta data.
     add_action( 'save', array( $this, 'dl_save' ) );
+
+    // Add shortcode
+    add_shortcode( 'doc-lense', array( $this, 'dl_load_shortcode' ) );
   }
   /**
    * Custom type meta boxes.
    *
    * return @void
    */
-   public function doclense_download_meta_boxes(){
+   public function dl_download_meta_boxes(){
      add_meta_box( 'upload_file', 'Attach File', 'dl_render_meta_box_content', 'centric_documents', 'advanced', 'high' );
+   }
+
+   /**
+   * Render Meta Box content.
+   *
+   * @param WP_Post $post The post object.
+   */
+   public function dl_load_shortcode(){
+     ?>
+     <div class="quicklinks__layout">
+       <div class="popular__forms--links">
+         <h3>Download popular forms</h3>
+         <form action="" id="popular__form_download">
+           <label for="document__title">
+             <div class="select__form--input">
+               <span class="selected__form">Application to Lease Land</span>
+               <button id="downloadDoc" class="material-icons">arrow_drop_down</button>
+             </div>
+           </label>
+           <input class="docdownload" type="submit" value="Download">
+         </form>
+       </div>
+     </div>
+     <?php
    }
 
 }
@@ -122,7 +152,7 @@ function dl_render_meta_box_content( $post ){
  }
 
  /**
- * Custom Enquiry Columns.
+ * Custom Documents Columns.
  *
  * @param WP_Post $post The post object.
  */
