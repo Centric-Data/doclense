@@ -51,6 +51,9 @@ class DocumentLense
 
     // Add shortcode
     add_shortcode( 'doc-lense', array( $this, 'dl_load_shortcode' ) );
+
+    // Hook for adding admin menus
+    add_action( 'admin_menu', 'dl_register_ref_page' );
   }
   /**
    * Custom type meta boxes.
@@ -120,37 +123,6 @@ function dl_download_form_post_type() {
  }
  add_action( 'init', 'dl_download_form_post_type' );
 
-/**
-* Save the meta data when the post is saved.
-*
-* @param int $post_id The ID of the post being saved.
-*/
-function dl_save( $post_id ){
-
-}
-
-/**
-* Render Meta Box content.
-*
-* @param WP_Post $post The post object.
-*/
-function dl_render_meta_box_content( $post ){
-   // Add an once field so we can check for it later.
-   wp_nonce_field( '' );
-
-   // Use get_post_meta to retrieve an existing value from the database
-   $value = get_post_meta( $post->ID, '_file_meta_value_key', true );
-
-   // Display the form, using the current array_count_values
-   ?>
-   <label for="doclence_select_field"><?php _e( 'Attach a Document:' ); ?></label>
-   <select name="docs" id="doclence_input_field">
-     <option value="doc1">Agenda 2020 Farm</option>
-     <option value="doc2">Farm Lease Agreement</option>
-   </select>
-   <?php
- }
-
  /**
  * Custom Documents Columns.
  *
@@ -160,9 +132,83 @@ function dl_render_meta_box_content( $post ){
    $newColumns = array();
    $newColumns['title'] = 'File Title';
    $newColumns['details'] = 'Excerpt Details';
-   $newColumns['Document'] = 'Document';
+   $newColumns['document'] = 'Document';
    $newColumns['date'] = 'Date';
 
    return $newColumns;
  }
  add_filter( 'manage_centric_documents_posts_columns', 'dl_doclense_columns' );
+
+ // Manage custom column data
+ add_action( 'manage_centric_documents_posts_custom_column', 'dl_doclense_custom_column_data', 10, 2 );
+ function dl_doclense_custom_column_data( $column, $post_id ){
+   switch ( $column ) {
+     case 'details':
+       echo get_the_excerpt();
+       break;
+    case 'document':
+      $attached_document = get_post_meta( $post_id, '_file_meta_value_key', true );
+      echo $attached_document;
+      break;
+     default:
+       // code...
+       break;
+   }
+ }
+
+ /**
+ * Render Meta Box content.
+ *
+ * @param WP_Post $post The post object.
+ */
+ function dl_render_meta_box_content( $post ){
+    // Add an once field so we can check for it later.
+    wp_nonce_field( '_wpnounce_field', 'wp_doc_haven' );
+
+    // Use get_post_meta to retrieve an existing value from the database
+    $value = get_post_meta( $post->ID, '_file_meta_value_key', true );
+
+    // Display the form, using the current array_count_values
+    ?>
+    <label for="doclence_select_field"><?php _e( 'Attach a Document:' ); ?></label>
+    <input id="doclence_doc_data" type="file" name="doclence_doc_data" value="<?php echo esc_attr( $value ); ?>" accept="application/pdf,application/msword">
+    <?php
+  }
+
+ /**
+ * Save the meta data when the post is saved.
+ *
+ * @param int $post_id The ID of the post being saved.
+ */
+ function dl_save( $post_id ){
+   if( ! current_user_can('edit_post', $post_id ) ){
+     return;
+   }
+   if( ! isset( $_POST['_wpnounce_field'] ) || ! wp_verify_nonce( $_POST['_wpnounce_field'], 'wp_doc_haven' ) ) {
+     return;
+   }
+   if( array_key_exists( 'doclence_doc_data', $_POST ) ){
+     $file_uploaded = sanitize_text_field( $_POST['doclence_doc_data'] );
+     update_post_meta( $post_id, '_file_meta_value_key', $file_uploaded );
+   }
+
+ }
+
+ /**
+ * Adds a submenu page under a custom post type
+ *
+ */
+ function dl_register_ref_page(){
+   add_submenu_page(
+     'edit.php?post_type=centric_documents',
+     __( 'Documents Details', 'doclense' ),
+     __( 'Details', 'doclense' ),
+     'manage_options',
+     'documents',
+     'dl_ref_page_callback'
+   );
+ }
+
+ function dl_ref_page_callback(){
+  require_once( DL_LOCATION . '/inc/templates/doclense-admin.php' );
+ }
