@@ -47,7 +47,7 @@ class DocumentLense
     add_action( 'add_meta_boxes', array( $this, 'dl_download_meta_boxes' ) );
 
     // Save meta data.
-    add_action( 'save', array( $this, 'dl_save' ) );
+    add_action( 'save', array( $this, 'dl_save_custom_meta_data' ) );
 
     // Add shortcode
     add_shortcode( 'doc-lense', array( $this, 'dl_load_shortcode' ) );
@@ -147,8 +147,10 @@ function dl_download_form_post_type() {
        echo get_the_excerpt();
        break;
     case 'document':
-      $attached_document = get_post_meta( $post_id, '_file_meta_value_key', true );
-      echo $attached_document;
+      $url = '';
+      // Get attached file.
+      $file = get_post_meta( $post_id, 'doclence_doc_data', true );
+      echo $_POST[ 'doclence_doc_data' ];
       break;
      default:
        // code...
@@ -180,19 +182,54 @@ function dl_download_form_post_type() {
  *
  * @param int $post_id The ID of the post being saved.
  */
- function dl_save( $post_id ){
+ function dl_save_custom_meta_data( $post_id ){
    if( ! current_user_can('edit_post', $post_id ) ){
      return;
    }
    if( ! isset( $_POST['_wpnounce_field'] ) || ! wp_verify_nonce( $_POST['_wpnounce_field'], 'wp_doc_haven' ) ) {
      return;
    }
-   if( array_key_exists( 'doclence_doc_data', $_POST ) ){
-     $file_uploaded = sanitize_text_field( $_POST['doclence_doc_data'] );
-     update_post_meta( $post_id, '_file_meta_value_key', $file_uploaded );
+   if( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
+     return;
+   }
+   // if( array_key_exists( 'doclence_doc_data', $_POST ) ){
+   //   $file_uploaded = sanitize_text_field( $_POST['doclence_doc_data'] );
+   //   update_post_meta( $post_id, '_file_meta_value_key', $file_uploaded );
+   // }
+
+   // Make sure the file array isn't empty.
+   if( ! empty( $_FILES[ 'doclence_doc_data' ][ 'name' ] ) ) {
+
+     // Setup the array of supported file  types (pdf)
+     $supported_types = array( 'application/pdf' );
+
+     // Get the file type of the upload.
+     $arr_file_type = wp_check_filetype( basename( $_FILES[ 'doclence_doc_data' ][ 'name' ] ) );
+     $uploaded_type = $arr_file_type[ 'type' ];
+
+     // Check if the type is supported. If not, throw an error.
+     if( in_array( $uploaded_type, $supported_types ) ) {
+
+       // Use the Wordpress API to upload the files
+       $upload = wp_upload_bits( $_FILES[ 'doclence_doc_data' ][ 'name' ], null, file_get_contents( $_FILES[ 'doclence_doc_data' ][ 'tmp_name' ] ) );
+
+       if( isset( $upload[ 'error' ] ) && $upload[ 'error' ] != 0 ) {
+         wp_die( 'There was an error uploading your file. The error is: ' . $upload[ 'error' ] );
+       } else {
+         add_post_meta( $post_id, '_file_meta_value_key', $upload );
+         update_post_meta( $post_id, '_file_meta_value_key', $upload );
+       }
+     } else {
+       wp_die( 'The file type that you have uploaded is not a PDF' );
+     }
    }
 
  }
+
+ /**
+ * Validating and Save the File.
+ *
+ */
 
  /**
  * Adds a submenu page under a custom post type
