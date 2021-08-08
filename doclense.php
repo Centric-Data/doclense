@@ -46,9 +46,6 @@ class DocumentLense
     // Create Meta Boxes in Custom Post Type centric_documents
     add_action( 'add_meta_boxes', array( $this, 'dl_download_meta_boxes' ) );
 
-    // Save meta data.
-    add_action( 'save', array( $this, 'dl_save_custom_meta_data' ) );
-
     // Add shortcode
     add_shortcode( 'doc-lense', array( $this, 'dl_load_shortcode' ) );
 
@@ -61,6 +58,7 @@ class DocumentLense
 
     // Define default term in the custom taxonomy
     add_action( 'save_post', 'default_taxonomy_term', 100, 2 );
+
   }
   /**
    * Custom type meta boxes.
@@ -160,8 +158,8 @@ function dl_download_form_post_type() {
     case 'document':
       $url = '';
       // Get attached file.
-      $file = get_post_meta( $post_id, 'doclence_doc_data', true );
-      echo $_POST[ 'doclence_doc_data' ];
+      $file = get_post_meta(get_the_ID(), 'dl_render_meta_box_content', true);
+      echo $file['url'];
       break;
      default:
        // code...
@@ -176,16 +174,15 @@ function dl_download_form_post_type() {
  */
  function dl_render_meta_box_content( $post ){
     // Add an once field so we can check for it later.
-    wp_nonce_field( '_wpnounce_field', 'wp_doc_haven' );
+    wp_nonce_field( DL_LOCATION, 'dl_render_attachment_nonce' );
 
-    // Use get_post_meta to retrieve an existing value from the database
-    $value = get_post_meta( $post->ID, '_file_meta_value_key', true );
+    $value = get_post_meta(get_the_ID(), 'dl_render_meta_box_content', true);
 
-    // Display the form, using the current array_count_values
-    ?>
-    <label for="doclence_select_field"><?php _e( 'Attach a Document:' ); ?></label>
-    <input id="doclence_doc_data" type="file" name="doclence_doc_data" value="<?php echo esc_attr( $value ); ?>" accept="application/pdf,application/msword">
-    <?php
+    $html = '<p class="description">';
+    $html .= 'Upload your PDF here.';
+    $html .= '</p>';
+    $html .= '<input type="file" id="dl_render_meta_box_content" name="dl_render_meta_box_content" value="'. esc_attr($value) .'" size="25">';
+    echo $html;
   }
 
  /**
@@ -193,54 +190,62 @@ function dl_download_form_post_type() {
  *
  * @param int $post_id The ID of the post being saved.
  */
- function dl_save_custom_meta_data( $post_id ){
-   if( ! current_user_can('edit_post', $post_id ) ){
-     return;
+ function dl_save_custom_meta_data( $id ){
+   // Security Verification
+   if ( !wp_verify_nonce( $_POST['dl_render_attachment_nonce'], DL_LOCATION ) ) {
+     return $id;
    }
-   if( ! isset( $_POST['_wpnounce_field'] ) || ! wp_verify_nonce( $_POST['_wpnounce_field'], 'wp_doc_haven' ) ) {
-     return;
-   }
-   if( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
-     return;
-   }
-   // if( array_key_exists( 'doclence_doc_data', $_POST ) ){
-   //   $file_uploaded = sanitize_text_field( $_POST['doclence_doc_data'] );
-   //   update_post_meta( $post_id, '_file_meta_value_key', $file_uploaded );
-   // }
 
-   // Make sure the file array isn't empty.
-   if( ! empty( $_FILES[ 'doclence_doc_data' ][ 'name' ] ) ) {
+   if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
+     return $id;
+   }
 
-     // Setup the array of supported file  types (pdf)
+   if ( 'page' == $__POST['post_type'] ) {
+     if( !current_user_can('edit_page', $id) ) {
+       return $id;
+     } else {
+       if( !current_user_can('edit_page', $id) ){
+         return $id;
+       }
+     }
+   }
+
+   // Make sure the file array isn't empty
+   if ( !empty( $_FILES['dl_render_meta_box_content']['name'] ) ) {
+     // Setup the array of supported file types. In this case, it's just PDF.
      $supported_types = array( 'application/pdf' );
 
-     // Get the file type of the upload.
-     $arr_file_type = wp_check_filetype( basename( $_FILES[ 'doclence_doc_data' ][ 'name' ] ) );
-     $uploaded_type = $arr_file_type[ 'type' ];
+     // Get the file type of the upload
+     $arr_file_type = wp_check_filetype( basename( $_FILES['dl_render_meta_box_content']['name'] ) );
+     $uploaded_type = $arr_file_type['type'];
 
      // Check if the type is supported. If not, throw an error.
      if( in_array( $uploaded_type, $supported_types ) ) {
+       // Use the WordPress API to upload the file
+       $upload = wp_upload_bits( $_FILES['dl_render_meta_box_content']['name'], null, file_get_contents( $_FILES['dl_render_meta_box_content']['tmp_name'] ) );
 
-       // Use the Wordpress API to upload the files
-       $upload = wp_upload_bits( $_FILES[ 'doclence_doc_data' ][ 'name' ], null, file_get_contents( $_FILES[ 'doclence_doc_data' ][ 'tmp_name' ] ) );
-
-       if( isset( $upload[ 'error' ] ) && $upload[ 'error' ] != 0 ) {
-         wp_die( 'There was an error uploading your file. The error is: ' . $upload[ 'error' ] );
+       if( isset( $upload['error'] ) && $upload['error'] != 0 ) {
+         wp_die( 'There was an error uploading your file. This error is: ' . $upload['error'] );
        } else {
-         add_post_meta( $post_id, '_file_meta_value_key', $upload );
-         update_post_meta( $post_id, '_file_meta_value_key', $upload );
+         add_post_meta( $id, 'dl_render_meta_box_content', $upload );
+         update_post_meta( $id, 'dl_render_meta_box_content', $upload );
        }
      } else {
-       wp_die( 'The file type that you have uploaded is not a PDF' );
+       wp_die( "The file type that you've uploaded is not a PDF." );
      }
    }
 
  }
+add_action( 'save_post', 'dl_save_custom_meta_data' );
 
  /**
- * Validating and Save the File.
+ * Append the enctype attribute to the post editor form.
  *
  */
+ function update_edit_form() {
+     echo ' enctype="multipart/form-data"';
+ }
+add_action( 'post_edit_form_tag', 'update_edit_form' );
 
  /**
  * Adds a submenu page under a custom post type
