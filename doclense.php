@@ -54,6 +54,13 @@ class DocumentLense
 
     // Hook for adding admin menus
     add_action( 'admin_menu', 'dl_register_ref_page' );
+
+    add_action( 'init', 'dl_create_documents_taxonomies', 0 );
+
+    add_filter( 'post_type_link', 'dl_filter_post_type_link', 10, 2 );
+
+    // Define default term in the custom taxonomy
+    add_action( 'save_post', 'default_taxonomy_term', 100, 2 );
   }
   /**
    * Custom type meta boxes.
@@ -113,7 +120,11 @@ function dl_download_form_post_type() {
    $args   = array(
      'labels'          => $labels,
      'public'          => true,
-     'has_archive'     => true,
+     'has_archive'     => 'centric_documents',
+     'rewrite'         => array(
+       'slug'          => 'centric_documents/%documentcat%',
+       'with_front'    => FALSE
+     ),
      'hierarchical'    => false,
      'supports'        => array( 'title', 'editor' ),
      'capability_type' => 'post',
@@ -132,7 +143,7 @@ function dl_download_form_post_type() {
    $newColumns = array();
    $newColumns['title'] = 'File Title';
    $newColumns['details'] = 'Excerpt Details';
-   $newColumns['document'] = 'Document';
+   $newColumns['document'] = 'Document Url';
    $newColumns['date'] = 'Date';
 
    return $newColumns;
@@ -249,3 +260,71 @@ function dl_download_form_post_type() {
  function dl_ref_page_callback(){
   require_once( DL_LOCATION . '/inc/templates/doclense-admin.php' );
  }
+
+ /**
+  * Create taxonomies for the post type "centric_documents".
+  *
+  */
+ function dl_create_documents_taxonomies(){
+   // Add new taxonomy, make it hierarchical
+   $labels = array(
+     'name'         =>  _x( 'Documents Categories', 'taxonomy general name', 'doclense' ),
+     'singular_name'  =>  _x( 'Document Category', 'taxonomy singular name', 'doclense' ),
+     'search_items'   =>  __( 'Search Documents Categories', 'doclense' ),
+     'all_items'      =>  __( 'All Documents Categories', 'doclense' ),
+     'edit_item'      =>  __( 'Edit Documents Categories', 'doclense' ),
+     'update_item'    =>  __( 'Update Document Category', 'doclense' ),
+     'add_new_item'   =>  __( 'Add New Document Category', 'doclense' ),
+     'new_item_name'  =>  __( 'New Document Category Name', 'doclense' ),
+     'menu_name'      =>  __( 'Document Categories', 'doclense' ),
+   );
+
+   $args = array(
+     'hierarchical'   =>  true,
+     'labels'         =>  $labels,
+     'show_ui'        =>  true,
+     'show_admin_column'  => true,
+     'query_var'          =>  true,
+     'rewrite'            =>  array(
+       'slug'       => 'documentcat',
+       'with_front' =>  false,
+     ),
+   );
+
+   register_taxonomy( 'documentcat', array( 'centric_documents' ), $args );
+ }
+
+ /**
+  * Changing the permalink
+  *
+  */
+  function dl_filter_post_type_link( $link, $post ){
+    if( $post->post_type !== 'centric_documents' ){
+      return $link;
+    }
+
+    if( $cats = get_the_terms( $post->ID, 'documentcat' ) ){
+      $link = str_replace( '%documentcat%', array_pop( $cats )->slug, $link );
+
+      return $link;
+    }
+  }
+
+  /**
+   * Default term in the custom Taxonomy
+   *
+   */
+   function default_taxonomy_term( $post_id, $post ){
+     if( 'publish' === $post->post_status ){
+       $defaults = array(
+         'documentcat'  =>  array( 'other' ),
+       );
+       $taxonomies = get_object_taxonomies( $post->post_type );
+       foreach ( (array) $taxonomies as $taxonomy ) {
+         $terms = wp_get_post_terms( $post_id, $taxonomy );
+         if( empty($terms) && array_key_exists( $taxonomy, $defaults ) ){
+           wp_set_object_terms( $post_id, $defaults[$taxonomy], $taxonomy );
+         }
+       }
+     }
+   }
