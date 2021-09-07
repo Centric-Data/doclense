@@ -59,7 +59,24 @@ class DocumentLense
     // Define default term in the custom taxonomy
     add_action( 'save_post', 'default_taxonomy_term', 100, 2 );
 
+    add_filter( 'rest_route_for_post', 'dl_rest_route_cpt', 10, 2 );
+
+    // Load scripts
+    add_action( 'wp_footer', array( $this, 'dl_load_scripts' ) );
+
+    // Add Assets (js, css)
+    add_action( 'wp_enqueue_scripts', array( $this, 'dl_load_assets' ) );
+
   }
+
+  // Enqueue Scripts
+  public function dl_load_assets()
+  {
+    wp_enqueue_style( 'doclense-css', DL_PLUGIN_URL . 'css/doclense.css', [], time(), 'all' );
+    wp_enqueue_script( 'doclense-js', DL_PLUGIN_URL . 'js/doclense.js', ['jquery'], time(), 1 );
+  }
+
+
   /**
    * Custom type meta boxes.
    *
@@ -79,23 +96,70 @@ class DocumentLense
      <div class="quicklinks__layout">
        <div class="popular__forms--links">
          <h3>Download popular forms</h3>
-         <form action="" id="popular__form_download">
-           <label for="document__title">
-             <div class="select__form--input">
-               <span class="selected__form">Application to Lease Land</span>
-               <button id="downloadDoc" class="material-icons">arrow_drop_down</button>
-             </div>
-           </label>
-           <input class="docdownload" type="submit" value="Download">
-         </form>
+         <div class="popular__forms--download">
+           <div id="select__form--input">
+          		<select name="zlcforms" id="forms-container"></select>
+          	</div>
+            <button id="load-forms" class="docdownload" type="submit" value="Download">Download Form</button>
+         </div>
        </div>
      </div>
      <?php
    }
 
+  // Run Script
+  public function dl_load_scripts(){
+    ?>
+      <script>
+        const formsBtnLoad = document.querySelector('#load-forms');
+        const formsContainerData = document.querySelector('#forms-container');
+
+          window.addEventListener( 'load', (e) => {
+            var ourReq = new XMLHttpRequest();
+            ourReq.open( 'GET', 'http://zlc.local/wp-json/wp/v2/documents' );
+            ourReq.onload = function() {
+              if ( ourReq.status >= 200 && ourReq.status < 400 ){
+                var data = JSON.parse( ourReq.responseText );
+                // console.log(data);
+                selectFormHTML(data);
+              } else {
+                console.log( 'Cannot load content' );
+              }
+            };
+
+            ourReq.onerror = function(){
+              console.log( 'Connection error' );
+            };
+
+            ourReq.send();
+
+          } );
+
+        function selectFormHTML( postsData ){
+          var ourHTMLString = '';
+
+          for( i = 0; i < postsData.length; i++ ) {
+            ourHTMLString += '<option>' + postsData[i].title.rendered + '</option>';
+          }
+          formsContainerData.innerHTML = ourHTMLString;
+        }
+      </script>
+    <?php
+  }
+
 }
 
 new DocumentLense;
+
+/**
+* Register a rest route for custom post type
+*/
+function dl_rest_route_cpt( $route, $post ){
+  if ( $post->post_type === 'centric_documents' ) {
+    $route = '/wp/v2/documents/' . $post->ID;
+  }
+  return $route;
+}
 
 /**
  * Register a custom post type.
@@ -124,6 +188,9 @@ function dl_download_form_post_type() {
        'with_front'    => FALSE
      ),
      'hierarchical'    => false,
+     'show_in_rest'    => true,
+     'rest_base'       => 'documents',
+     'rest_controller_class'  =>  'WP_REST_Posts_Controller',
      'supports'        => array( 'title', 'editor' ),
      'capability_type' => 'post',
      'menu_icon'       => 'dashicons-text-page',
