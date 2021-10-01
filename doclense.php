@@ -116,7 +116,7 @@ class DocumentLense
 
           window.addEventListener( 'load', (e) => {
             var ourReq = new XMLHttpRequest();
-            ourReq.open( 'GET', 'http://zlc.local/wp-json/wp/v2/documents' );
+            ourReq.open( 'GET', 'https://zlc.centricdata.net/wp-json/wp/v2/documents' );
             ourReq.onload = function() {
               if ( ourReq.status >= 200 && ourReq.status < 400 ){
                 var data = JSON.parse( ourReq.responseText );
