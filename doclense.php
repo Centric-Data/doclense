@@ -95,12 +95,12 @@ class DocumentLense
      ?>
      <div class="quicklinks__layout">
        <div class="popular__forms--links">
-         <h3>Download popular forms</h3>
+         <h3>Download Document</h3>
          <div class="popular__forms--download">
            <div id="select__form--input">
           		<select name="zlcforms" id="forms-container"></select>
           	</div>
-            <button id="load-forms" class="docdownload" type="submit" value="Download">Download Form</button>
+            <button id="load-forms" class="docdownload" type="submit" value="Download">Download</button>
          </div>
        </div>
      </div>
